@@ -4,12 +4,40 @@
 
 // Dependencies
 import http from 'http';
+import https from 'https';
 import url from 'url';
 import { StringDecoder } from 'string_decoder';
 import {environementToExport as config} from './config.mjs';
+import fs from 'fs';
 
-const server = http.createServer((req, res) => {
-    
+// Instantiating the http server
+const httpServer = http.createServer((req, res) => {
+    unifiedServer(req, res);    
+});
+
+// Start the http server
+httpServer.listen(config.httpPort,()=>{
+    console.log('The server is listening on port '+ config.httpPort+ ' in '+config.envName+ ' mode');
+});
+
+// Instantiating the HTTPS server
+const httpsServerOption = {
+    key: fs.readFileSync('./https/key.pem'),
+    cert: fs.readFileSync('./https/cert.pem')
+}
+
+// Instatiating the https server
+const httpsServer = https.createServer(httpsServerOption, (req, res) => {
+    unifiedServer(req, res);    
+});
+
+// Start the https server
+httpsServer.listen(config.httpsPort,()=>{
+    console.log('The server is listening on port '+ config.httpsPort+ ' in '+config.envName+ ' mode');
+});
+
+// All the server logic for both the http and https server
+const unifiedServer = (req, res) => {
     // Get the URL and parse it into
     const parsedUrl = url.parse(req.url, true);
 
@@ -68,11 +96,7 @@ const server = http.createServer((req, res) => {
             console.log('Returning this response: ', statusCode, payloadString);
         });        
     });
-});
-
-server.listen(config.port,()=>{
-    console.log('The server is listening on port '+ config.port+ ' in '+config.envName+ ' mode');
-});
+}
 
 // Define the handlers
 const handlers = {};
