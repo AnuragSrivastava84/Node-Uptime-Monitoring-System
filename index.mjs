@@ -9,6 +9,7 @@ import url from 'url';
 import { StringDecoder } from 'string_decoder';
 import {environementToExport as config} from './config.mjs';
 import fs from 'fs';
+import handlers from './lib/handlers.mjs';
 
 // Instantiating the http server
 const httpServer = http.createServer((req, res) => {
@@ -61,9 +62,8 @@ const unifiedServer = (req, res) => {
         buffer += decoder.write(data);
     });
 
-    req.on('end', () => {
+    req.on('end', async () => {
         buffer += decoder.end();
-
         // Choose the handler this request should go to, if one is not found, use the not found handler
         const chosenHandler = typeof(router[trimmedPath]) !== 'undefined' ? router[trimmedPath] : handlers.notFound;
 
@@ -73,44 +73,30 @@ const unifiedServer = (req, res) => {
             queryStringObject,
             method,
             headers,
-            'payload' : buffer
+            payload : buffer
         }
 
         // Route the requests to handler specified in the router
-        chosenHandler(data, (statusCode, payload)=>{
-            // use the status code called back by the handler, or default set to 200
-            statusCode = typeof(statusCode) === 'number'? statusCode : 200;
-
-            // use the payload called back by the handler, or default to an empty object
-            payload = typeof(payload) === 'object' ? payload : {};
-
-            // Convert the payload to a string
-            const payloadString = JSON.stringify(payload);
-
+        try{
+            const handlerResponse =  await chosenHandler(data);
             // Return the response
-            res.setHeader('Content-Type', 'application/json');
-            res.writeHead(statusCode);
-            res.end(payloadString);
-            
+            setResponse(res, handlerResponse);
+
             // Log the request path
-            console.log('Returning this response: ', statusCode, payloadString);
-        });        
+            console.log('Returning this response: ', handlerResponse.status, handlerResponse.payload);
+        }catch(err){
+            setResponse(res, err);
+        }        
     });
 }
 
-// Define the handlers
-const handlers = {};
-
-handlers.notFound = (data, callback) => {
-    callback(404);
-}
-
-// Ping handler
-handlers.ping = (data, callback) => {
-    callback(200);
-}
+const setResponse = (res, handlerResponse) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.writeHead(handlerResponse.status);
+    res.end(handlerResponse.payload);
+} 
 
 // Define a request router
 const router = {
-    ping: handlers.ping
+    ping: handlers.ping,
 }
