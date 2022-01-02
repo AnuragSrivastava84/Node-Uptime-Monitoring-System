@@ -7,9 +7,10 @@ import http from 'http';
 import https from 'https';
 import url from 'url';
 import { StringDecoder } from 'string_decoder';
-import {environementToExport as config} from './config.mjs';
+import {environementToExport as config} from './lib/config.mjs';
 import fs from 'fs';
 import handlers from './lib/handlers.mjs';
+import helpers from './lib/helpers.mjs';
 
 // Instantiating the http server
 const httpServer = http.createServer((req, res) => {
@@ -73,7 +74,7 @@ const unifiedServer = (req, res) => {
             queryStringObject,
             method,
             headers,
-            payload : buffer
+            payload : helpers.parseJsonAToObject(buffer)
         }
 
         // Route the requests to handler specified in the router
@@ -93,10 +94,12 @@ const unifiedServer = (req, res) => {
 const setResponse = (res, handlerResponse) => {
     res.setHeader('Content-Type', 'application/json');
     res.writeHead(handlerResponse.status);
-    res.end(handlerResponse.payload);
+    const payloadString = typeof handlerResponse.payload === 'object' ? JSON.stringify(handlerResponse.payload) : '';
+    res.end(payloadString);
 } 
 
 // Define a request router
 const router = {
     ping: handlers.ping,
+    users: handlers.users,
 }
